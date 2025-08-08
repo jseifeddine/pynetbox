@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from pynetbox.core.query import Request, RequestError, ParameterValidationError
+from pynetbox.core import validation
 from pynetbox.core.response import Record, RecordSet
 
 RESERVED_KWARGS = ()
@@ -454,6 +455,25 @@ class Endpoint:
         if isinstance(req, list):
             return [self.return_obj(i, self.api, self) for i in req]
         return self.return_obj(req, self.api, self)
+
+    def validate(self, data, *, action: str = "update"):
+        """Validate payload against OpenAPI schema for this endpoint.
+
+        - action: "create" or "update" (maps to POST/PATCH respectively)
+        - Supports dict (single) and list[dict] (batch) payloads.
+        """
+        action = action.lower()
+        if action not in {"create", "update"}:
+            raise RuntimeError("Unsupported action. Use 'create' or 'update'.")
+
+        method = "post" if action == "create" else "patch"
+        return validation.validate_payload_against_openapi(
+            api=self.api,
+            app_name=self.app.name,
+            endpoint_name=self.name,
+            method=method,
+            data=data,
+        )
 
     def delete(self, objects):
         """Deletes objects from NetBox.
